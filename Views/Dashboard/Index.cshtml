@@ -108,10 +108,10 @@ else
             datasets: [{
                 label: 'Ingresos',
                 data: data,
-                borderColor: '#FD7B41',
-                backgroundColor: 'rgba(253,123,65,0.12)',
+                borderColor: '#5A00FF',
+                backgroundColor: 'rgba(90,0,255,0.10)',
                 borderWidth: 2.5,
-                pointBackgroundColor: '#FD7B41',
+                pointBackgroundColor: '#F5FF00',
                 pointRadius: 4,
                 tension: 0.4,
                 fill: true
@@ -122,8 +122,8 @@ else
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { color: 'rgba(221,220,219,0.15)' }, ticks: { color: '#DDDCDB', font: { family: 'DM Sans' } } },
-                y: { grid: { color: 'rgba(221,220,219,0.1)' }, ticks: { color: '#DDDCDB', font: { family: 'DM Sans' }, callback: v => '$' + v.toLocaleString() } }
+                x: { grid: { color: 'rgba(90,0,255,0.15)' }, ticks: { color: '#e8e8ff', font: { family: 'DM Sans' } } },
+                y: { grid: { color: 'rgba(90,0,255,0.1)' }, ticks: { color: '#e8e8ff', font: { family: 'DM Sans' }, callback: v => '$' + v.toLocaleString() } }
             }
         }
     });

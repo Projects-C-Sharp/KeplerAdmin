@@ -3,8 +3,9 @@
 
 <div class="page-header">
     <div>
-        <a href="/Showtimes" class="back-link">← Volver a funciones</a>
+        <a asp-action="Index" class="back-link">← Volver a funciones</a>
         <h1 class="page-title">Nueva función</h1>
+        <p class="page-desc">Programa una nueva presentación para un evento</p>
     </div>
 </div>
 
@@ -13,8 +14,8 @@
     <div class="form-error-banner">@ViewBag.Error</div>
 }
 
-<div class="form-card">
-    <form method="post" action="/Showtimes/Create">
+<div class="form-card" style="max-width:820px">
+    <form method="post" asp-action="Create" id="create-form">
         @Html.AntiForgeryToken()
         <input type="hidden" name="seatLayout" id="seatLayoutJson"/>
 
@@ -25,73 +26,160 @@
                     <option value="">— Selecciona un evento —</option>
                     @foreach (var ev in Model.Events)
                     {
-                        <option value="@ev.Id">@ev.Name (@ev.VenueName)</option>
+                        <option value="@ev.Id">@ev.Name · @ev.VenueName (@ev.VenueCity)</option>
                     }
                 </select>
             </div>
             <div class="field-group">
                 <label class="field-label">Fecha y hora de inicio *</label>
-                <input type="datetime-local" name="Request.StartTime" class="field-input" required/>
+                <input type="datetime-local" name="Request.StartTime" class="field-input" required
+                       min="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")"/>
             </div>
             <div class="field-group">
                 <label class="field-label">Precio base (COP) *</label>
-                <input type="number" name="Request.BasePrice" class="field-input" placeholder="45000" min="0" step="1000" required/>
+                <input type="number" name="Request.BasePrice" class="field-input"
+                       placeholder="45000" min="0" step="500" required/>
             </div>
         </div>
 
-        <div class="section-divider">
-            <span>Distribución de sillas</span>
-        </div>
+        <div class="section-divider"><span>Distribución de asientos</span></div>
 
-        <div id="seatBuilder" class="seat-builder">
+        <!-- Seat builder -->
+        <div class="seat-builder">
             <div id="rowList"></div>
-            <button type="button" class="btn-outline" onclick="addRow()">+ Agregar fila</button>
+
+            <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
+                <button type="button" class="btn-outline" onclick="addRow()">+ Agregar fila</button>
+                <span id="seat-total-label" style="font-size:13px;color:var(--text-dim)">0 asientos configurados</span>
+            </div>
+
+            <!-- Live preview -->
+            <div id="seat-preview-wrap" style="margin-top:20px;display:none">
+                <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px">Vista previa</div>
+                <div class="stage-bar-sm">ESCENARIO</div>
+                <div id="seat-preview"></div>
+            </div>
         </div>
 
         <div class="form-actions">
-            <a asp-controller="Showtimes" asp-action="Index" class="btn-secondary">Cancelar</a>
-            <button type="submit" class="btn-primary" onclick="serializeLayout()">Crear función</button>
+            <a asp-action="Index" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary" onclick="return submitForm()">Crear función</button>
         </div>
     </form>
 </div>
 
+<style>
+.seat-row-builder {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+  animation: fadeUp .2s ease;
+}
+@@keyframes fadeUp { from { opacity:0;transform:translateY(6px); } to { opacity:1;transform:none; } }
+.row-handle { color: var(--text-dim); cursor: grab; font-size: 16px; }
+.preview-row { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; min-width: max-content; }
+.preview-label { width:20px;text-align:center;font-size:10px;font-weight:700;color:var(--text-dim);font-family:'Syne',sans-serif; }
+.preview-seat {
+  width: 18px; height: 18px; border-radius: 4px; border: 1px solid;
+  display: inline-block; flex-shrink: 0;
+}
+.preview-seat.std  { background: rgba(245,255,0,.08); border-color: rgba(245,255,0,.25); }
+.preview-seat.prem { background: rgba(90,0,255,.15);  border-color: rgba(90,0,255,.35); }
+.preview-seat.vip  { background: rgba(255,0,110,.12); border-color: rgba(255,0,110,.3); }
+.stage-bar-sm {
+  text-align:center;font-size:9px;letter-spacing:.18em;color:var(--text-dim);
+  border:1px solid var(--border);border-radius:3px;padding:4px;
+  margin-bottom:12px;background:var(--surface2);
+}
+</style>
+
 @section Scripts {
 <script>
 var rows = [];
-function addRow() {
-    var id = Date.now();
+var rowCounter = 0;
+
+function addRow(letter, count, type) {
+    rowCounter++;
+    var id = rowCounter;
     rows.push(id);
+
     var div = document.createElement('div');
     div.id = 'row-' + id;
     div.className = 'seat-row-builder';
-    div.innerHTML = `
-        <input type="text" class="field-input row-letter" placeholder="Fila (A, B…)" maxlength="3" style="width:80px"/>
-        <input type="number" class="field-input row-count" placeholder="# sillas" min="1" style="width:110px"/>
-        <select class="field-input row-type" style="width:130px">
-            <option value="0">Standard</option>
-            <option value="1">Premium</option>
-            <option value="2">VIP</option>
-        </select>
-        <button type="button" class="btn-sm btn-delete" onclick="removeRow(${id})">✕</button>
-    `;
+    div.innerHTML =
+        '<span class="row-handle" title="Fila">☰</span>' +
+        '<input type="text" class="field-input row-letter" placeholder="Fila (A,B…)" ' +
+            'maxlength="3" style="width:72px" value="' + (letter||'') + '" oninput="updatePreview()"/>' +
+        '<input type="number" class="field-input row-count" placeholder="# asientos" ' +
+            'min="1" max="50" style="width:110px" value="' + (count||'') + '" oninput="updatePreview()"/>' +
+        '<select class="field-input row-type" style="width:120px" onchange="updatePreview()">' +
+            '<option value="0"' + (type==0?' selected':'') + '>Standard</option>' +
+            '<option value="1"' + (type==1?' selected':'') + '>Premium</option>' +
+            '<option value="2"' + (type==2?' selected':'') + '>VIP</option>' +
+        '</select>' +
+        '<button type="button" class="btn-sm btn-delete" onclick="removeRow(' + id + ')">✕</button>';
+
     document.getElementById('rowList').appendChild(div);
+    updatePreview();
+    // Auto-suggest next letter
+    return div;
 }
+
 function removeRow(id) {
-    rows = rows.filter(r => r !== id);
-    document.getElementById('row-' + id).remove();
+    rows = rows.filter(function(r) { return r !== id; });
+    var el = document.getElementById('row-' + id);
+    if (el) el.remove();
+    updatePreview();
 }
-function serializeLayout() {
-    var layout = rows.map(id => {
+
+function getLayout() {
+    return rows.map(function(id) {
         var el = document.getElementById('row-' + id);
+        if (!el) return null;
         return {
-            row: el.querySelector('.row-letter').value,
+            row:       el.querySelector('.row-letter').value.toUpperCase().trim(),
             seatCount: parseInt(el.querySelector('.row-count').value) || 0,
-            type: parseInt(el.querySelector('.row-type').value)
+            type:      parseInt(el.querySelector('.row-type').value)
         };
-    }).filter(r => r.row && r.seatCount > 0);
-    document.getElementById('seatLayoutJson').value = JSON.stringify(layout);
+    }).filter(function(r) { return r && r.row && r.seatCount > 0; });
 }
-// Start with one row
-addRow();
+
+function updatePreview() {
+    var layout = getLayout();
+    var total  = layout.reduce(function(s, r) { return s + r.seatCount; }, 0);
+
+    document.getElementById('seat-total-label').textContent =
+        total > 0 ? total + ' asiento' + (total===1?'':'s') + ' configurado' + (total===1?'':'s') : '0 asientos configurados';
+
+    var wrap    = document.getElementById('seat-preview-wrap');
+    var preview = document.getElementById('seat-preview');
+    if (!layout.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+
+    var typeClass = ['std','prem','vip'];
+    preview.innerHTML = layout.map(function(r) {
+        var cls = typeClass[r.type] || 'std';
+        var seats = '';
+        for (var i = 0; i < Math.min(r.seatCount, 40); i++) {
+            seats += '<span class="preview-seat ' + cls + '"></span>';
+        }
+        if (r.seatCount > 40) seats += '<span style="font-size:10px;color:var(--text-dim)">+' + (r.seatCount-40) + '</span>';
+        return '<div class="preview-row"><span class="preview-label">' + r.row + '</span>' + seats + '</div>';
+    }).join('');
+}
+
+function submitForm() {
+    var layout = getLayout();
+    if (!layout.length) {
+        alert('Agrega al menos una fila de asientos.');
+        return false;
+    }
+    document.getElementById('seatLayoutJson').value = JSON.stringify(layout);
+    return true;
+}
+
+// Start with rows A and B
+addRow('A', 10, 0);
+addRow('B', 10, 0);
 </script>
 }

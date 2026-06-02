@@ -1,0 +1,86 @@
+@model admin_tickets.Models.ShowtimeEditViewModel
+@{ ViewData["Title"] = "Editar función"; }
+
+<div class="page-header">
+    <div>
+        <a asp-action="Detail" asp-route-id="@Model.Showtime.Id" class="back-link">← Volver al detalle</a>
+        <h1 class="page-title">Editar función</h1>
+        <p class="page-desc">@Model.Showtime.EventName</p>
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="form-error-banner">@TempData["Error"]</div>
+}
+
+<!-- Current info card -->
+<div class="card" style="margin-bottom:24px;max-width:760px">
+    <div class="card-header">
+        <h2 class="card-title">Información actual</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+        <div>
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Evento</div>
+            <div style="font-weight:500">@Model.Showtime.EventName</div>
+        </div>
+        <div>
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Estado</div>
+            @{
+                var sc = Model.Showtime.Status switch {
+                    admin_tickets.Models.ShowtimeStatus.Active    => "badge-active",
+                    admin_tickets.Models.ShowtimeStatus.Cancelled => "badge-inactive",
+                    admin_tickets.Models.ShowtimeStatus.SoldOut   => "badge-soldout",
+                    _                                              => "badge-neutral"
+                };
+            }
+            <span class="badge @sc">@Model.Showtime.Status</span>
+        </div>
+        <div>
+            <div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Asientos</div>
+            <div style="font-weight:500">@Model.Showtime.AvailableSeats disponibles / @Model.Showtime.TotalSeats total</div>
+        </div>
+    </div>
+</div>
+
+<div class="form-card">
+    <form method="post" asp-action="Edit" asp-route-id="@Model.Showtime.Id">
+        @Html.AntiForgeryToken()
+
+        <div class="form-grid">
+            <div class="field-group">
+                <label class="field-label">Fecha y hora de inicio</label>
+                <input type="datetime-local" name="StartTime" class="field-input"
+                       value="@Model.Request.StartTime?.ToString("yyyy-MM-ddTHH:mm")" required />
+                <span class="field-hint">Actual: @Model.Showtime.StartTime.ToString("dd MMM yyyy HH:mm")</span>
+            </div>
+            <div class="field-group">
+                <label class="field-label">Precio base (COP)</label>
+                <input type="number" name="BasePrice" class="field-input"
+                       value="@Model.Request.BasePrice" min="0" step="1000" required />
+                <span class="field-hint">Actual: $@Model.Showtime.BasePrice.ToString("N0")</span>
+            </div>
+        </div>
+
+        <div class="form-error-banner" style="display:none;margin-top:0" id="edit-warning">
+            ⚠ Cambiar la hora o precio de una función con boletas vendidas puede afectar a los compradores.
+        </div>
+
+        <div class="form-actions">
+            <a asp-action="Detail" asp-route-id="@Model.Showtime.Id" class="btn-secondary">Cancelar</a>
+            <button type="submit" class="btn-primary">Guardar cambios</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+// Show warning if there are sold seats
+var sold = @(Model.Showtime.TotalSeats - Model.Showtime.AvailableSeats);
+if (sold > 0) {
+    var w = document.getElementById('edit-warning');
+    w.style.display = 'flex';
+    w.textContent = '⚠ Esta función tiene ' + sold + ' boleta(s) vendida(s). Cambiar el horario o precio puede afectar a los compradores.';
+}
+</script>
+}

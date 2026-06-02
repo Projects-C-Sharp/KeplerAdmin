@@ -240,6 +240,31 @@ public class ShowtimeFormViewModel
     public CreateShowtimeRequest Request { get; set; } = new();
     public List<EventDto>        Events  { get; set; } = new();
 }
+public class UpdateShowtimeRequest
+{
+    public DateTime? StartTime { get; set; }
+    public decimal?  BasePrice  { get; set; }
+}
+
+public class SeatDto
+{
+    public int       Id            { get; set; }
+    public string    Row           { get; set; } = "";
+    public int       Number        { get; set; }
+    public string    Label         { get; set; } = "";
+    public SeatType  Type          { get; set; }
+    public SeatStatus Status       { get; set; }
+    public DateTime? ReservedUntil { get; set; }
+}
+
+public enum SeatStatus { Available = 0, Reserved = 1, Sold = 2 }
+
+public class ShowtimeEditViewModel
+{
+    public ShowtimeDto           Showtime { get; set; } = new();
+    public UpdateShowtimeRequest Request  { get; set; } = new();
+}
+
 
 public class CustomerEditViewModel
 {

@@ -4,16 +4,16 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Funciones</h1>
-        <p class="page-desc">Programación de presentaciones</p>
+        <p class="page-desc">Programación de presentaciones · @(Model?.TotalCount ?? 0) en total</p>
     </div>
-    <a href="/Showtimes/Create" class="btn-primary">+ Nueva función</a>
+    <a asp-action="Create" class="btn-primary">+ Nueva función</a>
 </div>
 
 @if (Model == null || !Model.Items.Any())
 {
     <div class="empty-state">
         <div class="empty-icon">◷</div>
-        <p>No hay funciones programadas.</p>
+        <p>No hay funciones programadas. <a asp-action="Create" class="link-accent">Crea la primera.</a></p>
     </div>
 }
 else
@@ -21,7 +21,15 @@ else
     <div class="table-card">
         <table class="data-table">
             <thead>
-                <tr><th>Evento</th><th>Inicio</th><th>Fin</th><th>Precio base</th><th>Disponibles</th><th>Estado</th></tr>
+                <tr>
+                    <th>Evento</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                    <th>Precio base</th>
+                    <th>Asientos</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
             </thead>
             <tbody>
                 @foreach (var s in Model.Items)
@@ -30,19 +38,60 @@ else
                         admin_tickets.Models.ShowtimeStatus.Active    => "badge-active",
                         admin_tickets.Models.ShowtimeStatus.SoldOut   => "badge-soldout",
                         admin_tickets.Models.ShowtimeStatus.Cancelled => "badge-inactive",
-                        _                                           => "badge-neutral"
+                        _                                              => "badge-neutral"
                     };
+                    var statusLabel = s.Status switch {
+                        admin_tickets.Models.ShowtimeStatus.Active    => "Activa",
+                        admin_tickets.Models.ShowtimeStatus.SoldOut   => "Agotada",
+                        admin_tickets.Models.ShowtimeStatus.Cancelled => "Cancelada",
+                        admin_tickets.Models.ShowtimeStatus.Completed => "Completada",
+                        _                                              => s.Status.ToString()
+                    };
+                    var occupancyPct = s.TotalSeats > 0
+                        ? (int)(((s.TotalSeats - s.AvailableSeats) / (double)s.TotalSeats) * 100)
+                        : 0;
                     <tr>
                         <td class="font-medium">@s.EventName</td>
-                        <td>@s.StartTime.ToString("dd MMM yyyy HH:mm")</td>
-                        <td>@s.EndTime.ToString("dd MMM yyyy HH:mm")</td>
-                        <td>$@s.BasePrice.ToString("N0")</td>
+                        <td class="text-nowrap">@s.StartTime.ToString("dd MMM yyyy HH:mm")</td>
+                        <td class="text-nowrap text-muted">@s.EndTime.ToString("dd MMM yyyy HH:mm")</td>
+                        <td class="font-medium">$@s.BasePrice.ToString("N0")</td>
                         <td>
-                            <span class="seat-counter">
-                                @s.AvailableSeats / @s.TotalSeats
-                            </span>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <span class="seat-counter">@s.AvailableSeats / @s.TotalSeats</span>
+                                <div class="mini-occ-bar">
+                                    <div class="mini-occ-fill" style="width:@occupancyPct%"></div>
+                                </div>
+                            </div>
                         </td>
-                        <td><span class="badge @statusClass">@s.Status</span></td>
+                        <td><span class="badge @statusClass">@statusLabel</span></td>
+                        <td>
+                            <div class="action-row">
+                                <a asp-action="Detail" asp-route-id="@s.Id" class="btn-table">Ver detalle</a>
+                                <a asp-action="Edit"   asp-route-id="@s.Id" class="btn-table">Editar</a>
+                                @if (s.Status == admin_tickets.Models.ShowtimeStatus.Active)
+                                {
+                                    <form method="post" asp-action="SetStatus" asp-route-id="@s.Id"
+                                          onsubmit="return confirm('¿Cancelar la función @s.EventName del @s.StartTime.ToString("dd MMM")?')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="active" value="false"/>
+                                        <button class="btn-table btn-danger">Cancelar</button>
+                                    </form>
+                                }
+                                else if (s.Status == admin_tickets.Models.ShowtimeStatus.Cancelled)
+                                {
+                                    <form method="post" asp-action="SetStatus" asp-route-id="@s.Id">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="active" value="true"/>
+                                        <button class="btn-table btn-success">Activar</button>
+                                    </form>
+                                }
+                                <form method="post" asp-action="Delete" asp-route-id="@s.Id"
+                                      onsubmit="return confirm('¿Eliminar esta función? Solo es posible si no tiene boletas vendidas.')">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn-table btn-danger">Eliminar</button>
+                                </form>
+                            </div>
+                        </td>
                     </tr>
                 }
             </tbody>
@@ -54,8 +103,15 @@ else
         <div class="pagination">
             @for (int p = 1; p <= Model.TotalPages; p++)
             {
-                <a href="/Showtimes?page=@p" class="page-btn @(Model.Page == p ? "active" : "")">@p</a>
+                <a asp-action="Index" asp-route-page="@p"
+                   class="page-btn @(Model.Page == p ? "active" : "")">@p</a>
             }
         </div>
     }
 }
+
+<style>
+.mini-occ-bar  { width:60px;height:4px;background:rgba(90,0,255,.15);border-radius:4px;overflow:hidden;flex-shrink:0; }
+.mini-occ-fill { height:100%;background:linear-gradient(90deg,#5A00FF,#FF006E);border-radius:4px;transition:width .3s; }
+@@media(max-width:768px){.mini-occ-bar{display:none}}
+</style>

@@ -293,6 +293,41 @@ public class ApiService
         return await Read<ShowtimeDto>(res);
     }
 
+    public async Task<ShowtimeDto?> GetShowtimeAsync(int id)
+    {
+        AttachToken();
+        var res = await _http.GetAsync($"api/showtimes/{id}");
+        return await Read<ShowtimeDto>(res);
+    }
+
+    public async Task<ShowtimeDto?> UpdateShowtimeAsync(int id, UpdateShowtimeRequest req)
+    {
+        AttachToken();
+        var res = await _http.PutAsync($"api/showtimes/{id}", Json(req));
+        return await Read<ShowtimeDto>(res);
+    }
+
+    public async Task<bool> DeleteShowtimeAsync(int id)
+    {
+        AttachToken();
+        var res = await _http.DeleteAsync($"api/showtimes/{id}");
+        return res.IsSuccessStatusCode;
+    }
+
+    public async Task<ShowtimeDto?> SetShowtimeStatusAsync(int id, bool active)
+    {
+        AttachToken();
+        var res = await _http.PatchAsync($"api/showtimes/{id}/status?active={active.ToString().ToLower()}", null);
+        return await Read<ShowtimeDto>(res);
+    }
+
+    public async Task<List<SeatDto>?> GetShowtimeSeatsAsync(int id)
+    {
+        AttachToken();
+        var res = await _http.GetAsync($"api/showtimes/{id}/seats");
+        return await Read<List<SeatDto>>(res);
+    }
+
     // ── Settings / Profile ────────────────────────────────────────────────────
     // /api/auth/me returns the object DIRECTLY (no ApiResponse wrapper)
     public async Task<AdminProfileDto?> GetProfileAsync()

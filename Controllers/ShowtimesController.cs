@@ -13,6 +13,7 @@ public class ShowtimesController : Controller
         HttpContext.Session.GetString("AccessToken") == null
             ? RedirectToAction("Login", "Auth") : null;
 
+    // ── LIST ─────────────────────────────────────────────────────────────────
     public async Task<IActionResult> Index(int page = 1, int? eventId = null)
     {
         if (RequireAuth() is { } r) return r;
@@ -21,6 +22,18 @@ public class ShowtimesController : Controller
         return View(result);
     }
 
+    // ── DETAIL + SEATS ───────────────────────────────────────────────────────
+    public async Task<IActionResult> Detail(int id)
+    {
+        if (RequireAuth() is { } r) return r;
+        var showtime = await _api.GetShowtimeAsync(id);
+        if (showtime == null) { TempData["Error"] = "Función no encontrada."; return RedirectToAction(nameof(Index)); }
+        var seats = await _api.GetShowtimeSeatsAsync(id) ?? new();
+        ViewBag.Seats = seats;
+        return View(showtime);
+    }
+
+    // ── CREATE ───────────────────────────────────────────────────────────────
     [HttpGet]
     public async Task<IActionResult> Create()
     {
@@ -34,7 +47,6 @@ public class ShowtimesController : Controller
     {
         if (RequireAuth() is { } r) return r;
 
-        // Parse seat layout from JSON string sent by the form
         if (!string.IsNullOrEmpty(seatLayout))
         {
             try
@@ -44,17 +56,69 @@ public class ShowtimesController : Controller
                     new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (rows != null) request.SeatLayout = rows;
             }
-            catch { /* ignore parse errors */ }
+            catch { /* ignore */ }
         }
 
         var result = await _api.CreateShowtimeAsync(request);
         if (result == null)
         {
-            ViewBag.Error = "No se pudo crear la función.";
+            ViewBag.Error = "No se pudo crear la función. Verifica los datos.";
             var events = await _api.GetEventsAsync(1, true);
             return View(new ShowtimeFormViewModel { Request = request, Events = events?.Items ?? new() });
         }
         TempData["Success"] = "Función creada exitosamente.";
         return RedirectToAction(nameof(Index));
+    }
+
+    // ── EDIT ─────────────────────────────────────────────────────────────────
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id)
+    {
+        if (RequireAuth() is { } r) return r;
+        var showtime = await _api.GetShowtimeAsync(id);
+        if (showtime == null) { TempData["Error"] = "Función no encontrada."; return RedirectToAction(nameof(Index)); }
+        return View(new ShowtimeEditViewModel
+        {
+            Showtime = showtime,
+            Request  = new UpdateShowtimeRequest { StartTime = showtime.StartTime, BasePrice = showtime.BasePrice }
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Edit(int id, UpdateShowtimeRequest request)
+    {
+        if (RequireAuth() is { } r) return r;
+        var result = await _api.UpdateShowtimeAsync(id, request);
+        if (result == null)
+        {
+            TempData["Error"] = "No se pudo actualizar la función.";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+        TempData["Success"] = "Función actualizada correctamente.";
+        return RedirectToAction(nameof(Detail), new { id });
+    }
+
+    // ── DELETE ────────────────────────────────────────────────────────────────
+    [HttpPost]
+    public async Task<IActionResult> Delete(int id)
+    {
+        if (RequireAuth() is { } r) return r;
+        var ok = await _api.DeleteShowtimeAsync(id);
+        TempData[ok ? "Success" : "Error"] = ok
+            ? "Función eliminada correctamente."
+            : "No se pudo eliminar. Puede tener boletas vendidas.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // ── TOGGLE STATUS ─────────────────────────────────────────────────────────
+    [HttpPost]
+    public async Task<IActionResult> SetStatus(int id, bool active)
+    {
+        if (RequireAuth() is { } r) return r;
+        var result = await _api.SetShowtimeStatusAsync(id, active);
+        TempData[result != null ? "Success" : "Error"] = result != null
+            ? (active ? "Función activada." : "Función cancelada.")
+            : "No se pudo cambiar el estado.";
+        return RedirectToAction(nameof(Detail), new { id });
     }
 }
