@@ -252,3 +252,27 @@ public class EmployeeEditViewModel
     public UserAdminDto      Employee { get; set; } = new();
     public UpdateUserRequest Request  { get; set; } = new();
 }
+
+// ── Settings / Profile ────────────────────────────────────────────────────────
+public class AdminProfileDto
+{
+    public string FullName { get; set; } = "";
+    public string Email    { get; set; } = "";
+    public string? PhotoUrl { get; set; }
+}
+
+public class ChangePasswordDto
+{
+    public string CurrentPassword { get; set; } = "";
+    public string NewPassword     { get; set; } = "";
+    public string ConfirmPassword { get; set; } = "";
+}
+
+public class AdminSettingsPreferences
+{
+    public bool EmailNotifications  { get; set; } = true;
+    public bool AuditLogAlerts      { get; set; } = true;
+    public bool DashboardAnimations { get; set; } = true;
+    public bool CompactMode         { get; set; } = false;
+    public bool ShowRevenueOnCards  { get; set; } = true;
+}

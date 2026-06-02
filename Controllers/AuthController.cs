@@ -41,6 +41,18 @@ public class AuthController : Controller
         HttpContext.Session.SetString("AccessToken", result.AccessToken);
         HttpContext.Session.SetString("UserEmail", dto.Email);
         HttpContext.Session.SetString("UserRole", role);
+
+        // Fetch profile photo eagerly so sidebar shows it immediately
+        try
+        {
+            var profile = await _api.GetProfileAsync();
+            if (profile?.PhotoUrl != null)
+                HttpContext.Session.SetString("UserPhoto", profile.PhotoUrl);
+            if (profile?.FullName != null)
+                HttpContext.Session.SetString("UserFullName", profile.FullName);
+        }
+        catch { /* non-critical */ }
+
         return RedirectToAction("Index", "Dashboard");
     }
 

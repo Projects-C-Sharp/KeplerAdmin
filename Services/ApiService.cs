@@ -292,4 +292,38 @@ public class ApiService
         var res = await _http.PostAsync("api/showtimes", Json(req));
         return await Read<ShowtimeDto>(res);
     }
+
+    // ── Settings / Profile ────────────────────────────────────────────────────
+    // /api/auth/me returns the object DIRECTLY (no ApiResponse wrapper)
+    public async Task<AdminProfileDto?> GetProfileAsync()
+    {
+        AttachToken();
+        var res = await _http.GetAsync("api/auth/me");
+        if (!res.IsSuccessStatusCode) return null;
+        var json = await res.Content.ReadAsStringAsync();
+        return JsonSerializer.Deserialize<AdminProfileDto>(json, _json);
+    }
+
+    public async Task<bool> ChangePasswordAsync(ChangePasswordDto dto)
+    {
+        AttachToken();
+        var res = await _http.PutAsync("api/auth/change-password", Json(dto));
+        return res.IsSuccessStatusCode;
+    }
+
+    // /api/auth/upload-photo returns { photoUrl: "..." } directly
+    public async Task<string?> UploadProfilePhotoAsync(IFormFile file)
+    {
+        AttachToken();
+        using var content = new MultipartFormDataContent();
+        using var stream  = file.OpenReadStream();
+        content.Add(new StreamContent(stream), "file", file.FileName);
+        var res = await _http.PostAsync("api/auth/upload-photo", content);
+        if (!res.IsSuccessStatusCode) return null;
+        var json = await res.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.TryGetProperty("photoUrl", out var pu) && pu.ValueKind == JsonValueKind.String)
+            return pu.GetString();
+        return null;
+    }
 }

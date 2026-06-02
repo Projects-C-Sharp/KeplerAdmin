@@ -5,16 +5,16 @@ version: '3.9'
 
 services:
   admin-tickets:
-    container_name: admin-tickets
+    container_name: admin-tickets-ismael
 
     build:
       context: .
       dockerfile: Dockerfile
 
-    image: ${DOCKER_USER}/admin-tickets:latest
+    image: ${DOCKER_USER}/admin-tickets-ismael:latest
 
     ports:
-      - "5202:8080"
+      - "5204:8080"
 
     restart: unless-stopped
     

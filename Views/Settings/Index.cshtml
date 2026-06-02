@@ -1,0 +1,346 @@
+@model admin_tickets.Models.AdminProfileDto
+@{
+    ViewData["Title"] = "Settings";
+    var photoUrl     = Model?.PhotoUrl;
+    var email        = Model?.Email ?? Context.Session.GetString("UserEmail") ?? "admin";
+    var fullName     = Model?.FullName ?? "Administrador";
+    var initial      = fullName.Length > 0 ? fullName[0].ToString().ToUpper() : "A";
+    var sessionPhoto = Context.Session.GetString("UserPhoto") ?? "";
+    var displayPhoto = !string.IsNullOrEmpty(sessionPhoto) ? sessionPhoto
+                     : !string.IsNullOrEmpty(photoUrl)    ? photoUrl
+                     : null;
+}
+
+<div class="settings-wrap">
+
+  <!-- Header -->
+  <div class="settings-header">
+    <div class="settings-header-icon">&#9881;</div>
+    <div class="settings-title-block">
+      <h1 class="page-title">Configuración</h1>
+      <p class="page-desc">Administra tu perfil, seguridad y preferencias del panel</p>
+    </div>
+  </div>
+
+  <div class="settings-grid">
+
+    <!-- ── LEFT: Profile card ──────────────────────────────── -->
+    <div>
+      <div class="profile-card">
+
+        <div class="avatar-wrap">
+          @if (!string.IsNullOrEmpty(displayPhoto))
+          {
+            <img id="avatar-preview" class="avatar-img" src="@displayPhoto" alt="Foto de perfil" />
+          }
+          else
+          {
+            <div id="avatar-preview" class="avatar-initials">@initial</div>
+          }
+          <span class="avatar-upload-btn" title="Cambiar foto"
+                onclick="document.getElementById('photo-file-input').click()">&#128247;</span>
+        </div>
+
+        <div class="profile-name">@fullName</div>
+        <div class="profile-email">@email</div>
+        <div class="profile-badge">&#9672; Administrador</div>
+
+        <div class="upload-progress" id="upload-progress">
+          <div class="upload-progress-bar" id="upload-bar"></div>
+        </div>
+        <div class="photo-status" id="photo-status"></div>
+      </div>
+
+      <!-- Hidden form for photo upload -->
+      <form id="photo-form" method="post" action="/Settings/UploadPhoto"
+            enctype="multipart/form-data" style="display:none">
+        @Html.AntiForgeryToken()
+        <input type="file" id="photo-file-input" name="photo"
+               accept="image/jpeg,image/png,image/webp" />
+      </form>
+
+      @if (TempData["PhotoSuccess"] != null)
+      {
+        <div class="s-alert s-alert-success" style="margin-top:14px">&#10003; @TempData["PhotoSuccess"]</div>
+      }
+      @if (TempData["PhotoError"] != null)
+      {
+        <div class="s-alert s-alert-error" style="margin-top:14px">&#10007; @TempData["PhotoError"]</div>
+      }
+    </div>
+
+    <!-- ── RIGHT: panels ───────────────────────────────────── -->
+    <div class="settings-panels">
+
+      <!-- Panel 1 · Información de cuenta -->
+      <div class="s-panel">
+        <div class="s-panel-header">
+          <div class="s-panel-icon yellow">&#128100;</div>
+          <div>
+            <div class="s-panel-title">Información de cuenta</div>
+            <div class="s-panel-desc">Datos de tu perfil de administrador</div>
+          </div>
+        </div>
+        <div class="s-panel-body">
+          <div class="s-field">
+            <label class="s-label">Nombre completo</label>
+            <input class="s-input" type="text" value="@fullName" readonly />
+          </div>
+          <div class="s-field">
+            <label class="s-label">Correo electrónico</label>
+            <input class="s-input" type="email" value="@email" readonly />
+          </div>
+          <div class="s-field">
+            <label class="s-label">Rol</label>
+            <input class="s-input" type="text" value="Administrador" readonly />
+          </div>
+          <p style="font-size:12px;color:#6b6b9a;margin-top:8px">
+            &#9432; Para cambiar nombre o correo, contacta al super-administrador del sistema.
+          </p>
+        </div>
+      </div>
+
+      <!-- Panel 2 · Seguridad -->
+      <div class="s-panel">
+        <div class="s-panel-header">
+          <div class="s-panel-icon pink">&#128274;</div>
+          <div>
+            <div class="s-panel-title">Seguridad</div>
+            <div class="s-panel-desc">Cambia tu contraseña de acceso al panel</div>
+          </div>
+        </div>
+        <div class="s-panel-body">
+          @if (TempData["PasswordSuccess"] != null)
+          {
+            <div class="s-alert s-alert-success">&#10003; @TempData["PasswordSuccess"]</div>
+          }
+          @if (TempData["PasswordError"] != null)
+          {
+            <div class="s-alert s-alert-error">&#10007; @TempData["PasswordError"]</div>
+          }
+
+          <form method="post" action="/Settings/ChangePassword" id="pw-form">
+            @Html.AntiForgeryToken()
+            <div class="s-field">
+              <label class="s-label">Contraseña actual</label>
+              <input class="s-input" type="password" name="CurrentPassword"
+                     placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
+                     autocomplete="current-password" required />
+            </div>
+            <div class="s-input-group">
+              <div class="s-field">
+                <label class="s-label">Nueva contraseña</label>
+                <input class="s-input" type="password" name="NewPassword" id="new-pw"
+                       placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
+                       autocomplete="new-password" required minlength="6" />
+                <div class="password-strength" id="pw-strength">
+                  <div class="strength-bar">
+                    <div class="strength-fill" id="strength-fill"></div>
+                  </div>
+                  <span class="strength-text" id="strength-text"></span>
+                </div>
+              </div>
+              <div class="s-field">
+                <label class="s-label">Confirmar contraseña</label>
+                <input class="s-input" type="password" name="ConfirmPassword" id="confirm-pw"
+                       placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
+                       autocomplete="new-password" required minlength="6" />
+              </div>
+            </div>
+            <div class="s-form-actions">
+              <button type="reset" class="s-btn s-btn-ghost">Cancelar</button>
+              <button type="submit" class="s-btn s-btn-primary">Actualizar contraseña</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Panel 3 · Preferencias -->
+      <div class="s-panel">
+        <div class="s-panel-header">
+          <div class="s-panel-icon purple">&#10022;</div>
+          <div>
+            <div class="s-panel-title">Preferencias del panel</div>
+            <div class="s-panel-desc">Activa o desactiva funciones según tus necesidades</div>
+          </div>
+        </div>
+        <div class="s-panel-body">
+          <div class="toggle-list">
+
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Notificaciones por email</div>
+                <div class="toggle-desc">Recibe alertas sobre eventos y ventas por correo</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="pref-email" checked
+                       onchange="savePref('emailNotifications', this.checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Alertas del log de auditoría</div>
+                <div class="toggle-desc">Notificaciones sobre acciones administrativas críticas</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="pref-audit" checked
+                       onchange="savePref('auditLogAlerts', this.checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Animaciones del dashboard</div>
+                <div class="toggle-desc">Efectos visuales en gráficos y tarjetas del panel</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="pref-anim" checked
+                       onchange="savePref('dashboardAnimations', this.checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Modo compacto</div>
+                <div class="toggle-desc">Reduce el espaciado para mostrar más contenido</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="pref-compact"
+                       onchange="savePref('compactMode', this.checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Mostrar ingresos en tarjetas</div>
+                <div class="toggle-desc">Visible en el dashboard y listados de eventos</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="pref-revenue" checked
+                       onchange="savePref('showRevenueOnCards', this.checked)" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /settings-panels -->
+  </div><!-- /settings-grid -->
+</div><!-- /settings-wrap -->
+
+@section Scripts {
+<script>
+// ── Cargar preferencias desde localStorage ──────────────
+(function () {
+    var prefs    = JSON.parse(localStorage.getItem('adminPrefs') || '{}');
+    var defaults = { emailNotifications: true, auditLogAlerts: true,
+                     dashboardAnimations: true, compactMode: false, showRevenueOnCards: true };
+    var map = { emailNotifications: 'pref-email', auditLogAlerts: 'pref-audit',
+                dashboardAnimations: 'pref-anim', compactMode: 'pref-compact',
+                showRevenueOnCards: 'pref-revenue' };
+    Object.keys(map).forEach(function (key) {
+        var val = prefs.hasOwnProperty(key) ? prefs[key] : defaults[key];
+        var el  = document.getElementById(map[key]);
+        if (el) el.checked = val;
+    });
+})();
+
+function savePref(key, value) {
+    var prefs = JSON.parse(localStorage.getItem('adminPrefs') || '{}');
+    prefs[key] = value;
+    localStorage.setItem('adminPrefs', JSON.stringify(prefs));
+    showPrefSaved();
+}
+
+function showPrefSaved() {
+    var el = document.getElementById('pref-saved-msg');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'pref-saved-msg';
+        el.style.cssText = 'position:fixed;bottom:24px;right:24px;background:rgba(245,255,0,0.1);' +
+            'border:1px solid rgba(245,255,0,0.3);color:#F5FF00;padding:10px 18px;' +
+            'border-radius:10px;font-size:13px;z-index:9999;transition:opacity .3s';
+        el.textContent = '\u2713 Preferencias guardadas';
+        document.body.appendChild(el);
+    }
+    el.style.opacity = '1';
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.style.opacity = '0'; }, 2000);
+}
+
+// ── Medidor de fuerza de contraseña ────────────────────
+document.getElementById('new-pw').addEventListener('input', function () {
+    var pw    = this.value;
+    var wrap  = document.getElementById('pw-strength');
+    var fill  = document.getElementById('strength-fill');
+    var label = document.getElementById('strength-text');
+    if (!pw) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    var score = 0;
+    if (pw.length >= 8)          score++;
+    if (/[A-Z]/.test(pw))        score++;
+    if (/[0-9]/.test(pw))        score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    var colors = ['#ff6b9d', '#FF006E', '#F5FF00', '#F5FF00'];
+    var widths = ['25%', '50%', '75%', '100%'];
+    var labels = ['Muy débil', 'Débil', 'Buena', 'Fuerte'];
+    fill.style.width      = widths[score - 1] || '15%';
+    fill.style.background = colors[score - 1] || '#ff6b9d';
+    label.textContent     = labels[score - 1] || 'Muy débil';
+});
+
+// ── Validar que las contraseñas coincidan ───────────────
+document.getElementById('pw-form').addEventListener('submit', function (e) {
+    var np = document.getElementById('new-pw').value;
+    var cp = document.getElementById('confirm-pw').value;
+    if (np !== cp) {
+        e.preventDefault();
+        var el = document.getElementById('confirm-pw');
+        el.style.borderColor = '#FF006E';
+        el.style.boxShadow   = '0 0 0 3px rgba(255,0,110,0.15)';
+        setTimeout(function () { el.style.borderColor = ''; el.style.boxShadow = ''; }, 2500);
+    }
+});
+
+// ── Preview y subida de foto ────────────────────────────
+document.getElementById('photo-file-input').addEventListener('change', function () {
+    if (!this.files || !this.files[0]) return;
+    var status = document.getElementById('photo-status');
+    var prog   = document.getElementById('upload-progress');
+    var bar    = document.getElementById('upload-bar');
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        var preview = document.getElementById('avatar-preview');
+        if (preview.tagName === 'IMG') {
+            preview.src = e.target.result;
+        } else {
+            var img = document.createElement('img');
+            img.id  = 'avatar-preview';
+            img.className = 'avatar-img';
+            img.src = e.target.result;
+            preview.parentNode.replaceChild(img, preview);
+        }
+    };
+    reader.readAsDataURL(this.files[0]);
+
+    status.textContent = 'Subiendo foto...';
+    status.className   = 'photo-status';
+    prog.style.display = 'block';
+    var w = 0;
+    var anim = setInterval(function () { w = Math.min(w + 12, 85); bar.style.width = w + '%'; }, 80);
+    setTimeout(function () {
+        clearInterval(anim);
+        bar.style.width = '100%';
+        document.getElementById('photo-form').submit();
+    }, 700);
+});
+</script>
+}

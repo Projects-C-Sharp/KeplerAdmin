@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] — Kepler Admin</title>
+    <title>@ViewData["Title"] — TicketX Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
@@ -18,10 +18,10 @@
 {
     <aside class="sidebar">
         <div class="sidebar-brand">
-            <span class="brand-icon">◈</span>
+            <span class="brand-icon">✦</span>
             <div>
-                <div class="brand-name">KEPLER</div>
-                <div class="brand-sub">Panel de control</div>
+                <div class="brand-name">TICKETX</div>
+                <div class="brand-sub">Admin Panel</div>
             </div>
         </div>
         <nav class="sidebar-nav">
@@ -51,10 +51,25 @@
             <a asp-controller="Reports" asp-action="AuditLog" class="nav-item @(ctrl == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "AuditLog" ? "active" : "")">
                 <span class="nav-icon">◷</span><span>Log de auditoría</span>
             </a>
+            <div class="nav-separator">CUENTA</div>
+            <a asp-controller="Settings" asp-action="Index" class="nav-item @(ctrl == "Settings" ? "active" : "")">
+                <span class="nav-icon">⚙</span><span>Configuración</span>
+            </a>
         </nav>
+        @{
+            var userPhoto   = Context.Session.GetString("UserPhoto") ?? "";
+            var userInitial = (Context.Session.GetString("UserEmail") ?? "A")[0].ToString().ToUpper();
+        }
         <div class="sidebar-footer">
             <div class="user-info">
-                <div class="user-avatar">@(Context.Session.GetString("UserEmail")?[0].ToString().ToUpper() ?? "A")</div>
+                @if (!string.IsNullOrEmpty(userPhoto))
+                {
+                    <img src="@userPhoto" class="user-avatar user-avatar-img" alt="Foto perfil" />
+                }
+                else
+                {
+                    <div class="user-avatar">@userInitial</div>
+                }
                 <div class="user-details">
                     <div class="user-email">@(Context.Session.GetString("UserEmail") ?? "Admin")</div>
                     <div class="user-role">Administrador</div>
